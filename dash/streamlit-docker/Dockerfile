@@ -5,5 +5,6 @@ COPY requirements.txt ./requirements.txt
 RUN  pip3 install --upgrade pip && pip3 install -r requirements.txt
 COPY . .
 
+#FIXME: JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 9)
 # Command overriden by docker-compose
-CMD streamlit run app.py
+CMD streamlit run app.py 
