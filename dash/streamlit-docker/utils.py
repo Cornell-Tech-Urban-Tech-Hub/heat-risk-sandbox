@@ -16,15 +16,45 @@ import pyarrow.parquet as pq
 from shapely import wkb
 import json
 from shapely.errors import GEOSException
+import boto3
+import re
+
+def scan_archive_dates():
+    cloudfront_url = os.environ.get('CLOUDFRONT_URL', 'https://heat-risk-dashboard.s3.amazonaws.com')
+    bucket_name = "heat-risk-dashboard"
+    st.write(f"Scanning S3 bucket: {bucket_name} for available dates...")
+    s3 = boto3.client('s3')
+
+    paginator = s3.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket_name)
+
+    keys = []
+    dates = set()
+    for page in pages:
+        for obj in page.get('Contents', []):
+            key = obj['Key']
+            keys.append(key)
+            match = re.search(r'\d{8}', key)
+            if match:
+                date_str = match.group(0)
+                date_obj = datetime.strptime(date_str, '%Y%m%d')
+                dates.add(date_obj)
+    dates = sorted(dates)
+
+    return dates
 
 @st.cache_data(ttl=300)  # Increased TTL to 5 min
-def load_data(selected_day):
+def load_data(selected_day, selected_date):
     tz = pytz.timezone('America/New_York')
     formatted_day = selected_day.replace(' ', '+')
-    current_date = datetime.now(tz).strftime("%Y%m%d")
+    # current_date = datetime.now(tz).strftime("%Y%m%d")
+    current_date = datetime.strptime(selected_date, '%m/%d/%Y').strftime("%Y%m%d")
     
     cloudfront_url = os.environ.get('CLOUDFRONT_URL', 'https://heat-risk-dashboard.s3.amazonaws.com')
     url = f'{cloudfront_url}/heat_risk_analysis_{formatted_day}_{current_date}.geoparquet'
+    # with st.sidebar:
+    #     with st.expander("Data Source URL"):
+    #         st.warning(f"Loaded {selected_day} forecast data for {selected_date} from {url}...")
 
     start_time = time.time()
 
@@ -43,6 +73,9 @@ def load_data(selected_day):
 
         # Create GeoDataFrame and set the geometry column
         gdf = gpd.GeoDataFrame(df, geometry='geometry', crs="EPSG:4326")
+        
+        # # Filter to include only New York state
+        # gdf = gdf[gdf['mode_STATE'] == 'NY']
 
         end_time = time.time()
         download_time = end_time - start_time
@@ -94,8 +127,8 @@ def get_zipcode_boundary(zip_code):
 def load_geographic_data():
     states, counties, _ = load_state_county_zip_data()
 
-    state_names = ["Select a State"] + sorted(states['NAME'].unique())
-    selected_state = st.sidebar.selectbox("Select State", state_names)
+    # state_names = ["Select a State"] + sorted(states['NAME'].unique())
+    selected_state = "New York"
 
     if selected_state != "Select a State":
         filtered_counties = counties[counties['STATE_NAME'] == selected_state]

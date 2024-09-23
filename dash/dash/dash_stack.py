@@ -124,7 +124,7 @@ class DashStack(Stack):
 
         # Create a CloudWatch dashboard
         dashboard = cloudwatch.Dashboard(self, "HeatDashDashboard",
-            dashboard_name="HeatDashStreamlitDashboard"
+            dashboard_name="HeatDashStreamlitDashboard-Sandbox"
         )
 
         # Create a metric for cluster-level RunningTaskCount using Container Insights

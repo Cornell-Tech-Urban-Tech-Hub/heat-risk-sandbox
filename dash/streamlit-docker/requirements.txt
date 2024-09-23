@@ -12,3 +12,4 @@ streamlit
 streamlit_folium
 plotly
 pyarrow
+boto3

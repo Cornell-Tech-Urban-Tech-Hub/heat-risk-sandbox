@@ -10,19 +10,35 @@ import pytz
 st.set_page_config(layout="wide")
 
 # Sidebar
+st.sidebar.title("SANDBOX EDITION")
 st.sidebar.title("Heat Risk and Health Index Dashboard")
 st.sidebar.markdown("This is an experimental prototype provided for informational purposes only by the [Jacobs Urban Tech Hub](https://urbantech.cornell.edu/) as part of the [Cornell Initiative on Aging and Adaptation to Extreme Heat](https://agingandadaptation.cornell.edu/).")
+
+st.sidebar.markdown("This sandbox allows you to view past data sequences. For the most recent data, please visit the [Heat Risk and Health Index Dashboard](https://heatmap.urbantech.info/).")
+
 st.sidebar.markdown("Please fill out a [survey](https://cornell.ca1.qualtrics.com/jfe/form/SV_4TTfOiGyOZJNVP0) to provide feedback. Bug reports [here](mailto:urbantech@cornell.edu)")
 
 # Day selection
 tz = pytz.timezone('America/New_York')
-today = datetime.now(tz)
+# today = datetime.now(tz)
 
-date_options = [(today + timedelta(days=i)).strftime("%m/%d/%Y") for i in range(7)]
+# pick the start date
+start_date_options=utils.scan_archive_dates()
+start_date_options = [date.strftime("%m/%d/%Y") for date in start_date_options]
+start_date_label = st.sidebar.selectbox("Select Start Date", start_date_options)
+selected_date = start_date_label
+
+# pick a day in the series
+# Convert selected_date to a datetime object
+selected_date_dt = datetime.strptime(selected_date, "%m/%d/%Y")
+
+
+# Generate date options starting from the selected_date
+date_options = [(selected_date_dt + timedelta(days=i)).strftime("%m/%d/%Y") for i in range(7)]
+
 day_options = [f"Day {i+1} - {date_options[i]}" for i in range(7)]
-
 selected_day_label = st.sidebar.selectbox("Select Heat Risk Day", day_options)
-selected_day = selected_day_label.split(' - ')[0]
+
 
 # Filtering options
 heat_threshold = st.sidebar.multiselect("Select Heat Risk Levels", [0, 1, 2, 3, 4], default=[2, 3, 4])
@@ -32,13 +48,12 @@ with st.sidebar.expander('Learn more about heat risk levels'):
     st.markdown(utils.get_heat_risk_levels_description())
 
 
-#TODO: add a util function to scan the S3 bucket for available dates
-#TODO: add a date picker for the user to select the start date
-#TODO: pass the start date to the load_data function to get the data for that date
-
 # Load the heat risk data
 try:
-    layer1_with_weighted_values = utils.load_data(selected_day)
+    selected_day = selected_day_label.split(' - ')[0]
+    selected_date = selected_day_label.split(' - ')[1]
+
+    layer1_with_weighted_values = utils.load_data(selected_day, selected_date)
     if layer1_with_weighted_values is None or layer1_with_weighted_values.empty:
         st.error("Data could not be loaded. Please check the data source or network connection.")
 except Exception as e:
@@ -113,6 +128,9 @@ map_width, map_height = 1000, 700
 
 # Use st_folium to display the map
 st_folium(m, width=map_width, height=map_height, returned_objects=["last_active_drawing", "last_clicked"])
+
+# Default to select "New York" state
+selected_state = "New York"
 
 if selected_state != "Select a State" or selected_county != "Select a County":
     if selected_county != "Select a County" and selected_state != "Select a State":
