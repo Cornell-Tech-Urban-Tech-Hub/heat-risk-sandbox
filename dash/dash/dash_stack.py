@@ -11,6 +11,7 @@ from aws_cdk import (
     aws_logs as logs,
     aws_cloudwatch as cloudwatch,
     aws_cloudwatch_actions as cloudwatch_actions,
+    aws_iam as iam,
     Stack,
     Duration,
     CfnOutput,
@@ -85,8 +86,6 @@ class DashStack(Stack):
                 ),
             ),
             desired_count=2,
-            # cpu=4096,
-            # memory_limit_mib=8192,
             cpu=16384,  # This corresponds to 16 vCPU (maximum)
             memory_limit_mib=122880,
             public_load_balancer=True,
@@ -94,6 +93,9 @@ class DashStack(Stack):
             domain_name=fqdn,
             domain_zone=hosted_zone,
         )
+
+        # Grant S3 read permissions to the Fargate task
+        heat_risk_bucket.grant_read(service.task_definition.task_role)
 
         # Configure the health check for the target group
         service.target_group.configure_health_check(
