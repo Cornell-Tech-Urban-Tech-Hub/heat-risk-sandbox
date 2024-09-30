@@ -3,15 +3,10 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_ecs_patterns as ecs_patterns,
     aws_route53 as route53,
-    aws_route53_targets as targets,
     aws_certificatemanager as acm,
     aws_s3 as s3,
-    aws_cloudfront as cloudfront,
-    aws_cloudfront_origins as origins,
     aws_logs as logs,
     aws_cloudwatch as cloudwatch,
-    aws_cloudwatch_actions as cloudwatch_actions,
-    aws_iam as iam,
     Stack,
     Duration,
     CfnOutput,
@@ -51,18 +46,6 @@ class DashStack(Stack):
         bucket_name = "heat-risk-dashboard"
         heat_risk_bucket = s3.Bucket.from_bucket_name(self, "HeatRiskBucket", bucket_name)
 
-        # Create CloudFront distribution
-        distribution = cloudfront.Distribution(self, "HeatRiskDistribution",
-            default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3Origin(heat_risk_bucket),
-                viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-                allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD,
-                cached_methods=cloudfront.CachedMethods.CACHE_GET_HEAD
-            ),
-            certificate=certificate,
-            domain_names=[fqdn]
-        )
-
         # Create a log group for the Fargate service
         log_group = logs.LogGroup(self, "HeatDashLogGroup",
             log_group_name="/ecs/heat-dash-streamlit-sandbox",
@@ -77,9 +60,6 @@ class DashStack(Stack):
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
                 image=image,
                 container_port=8501,
-                environment={
-                    "CLOUDFRONT_URL": f"https://{distribution.distribution_domain_name}"
-                },
                 log_driver=ecs.LogDrivers.aws_logs(
                     stream_prefix="HeatDashStreamlit",
                     log_group=log_group
@@ -195,8 +175,6 @@ class DashStack(Stack):
 
         # Output the DNS name of the load balancer
         CfnOutput(self, "LoadBalancerDNS", value=service.load_balancer.load_balancer_dns_name)
-        # Output the CloudFront distribution URL
-        CfnOutput(self, "CloudFrontURL", value=distribution.distribution_domain_name)
         # Output the CloudWatch Dashboard URL
         CfnOutput(self, "DashboardURL", 
                   value=f"https://{self.region}.console.aws.amazon.com/cloudwatch/home?region={self.region}#dashboards:name=HeatDashStreamlitDashboard")
